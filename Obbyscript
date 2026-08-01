@@ -1,0 +1,72 @@
+-- Debugging Auto-Obby Script
+local PathfindingService = game:GetService("PathfindingService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local TARGET_NAME = "Excellent"
+print("Script started! Searching for: " .. TARGET_NAME)
+
+local function getTargetPart()
+    local target = workspace:FindFirstChild(TARGET_NAME, true) -- Chuqurroq qidirish
+    if not target then
+        print("ERROR: '" .. TARGET_NAME .. "' part not found in workspace!")
+        return nil
+    end
+    print("SUCCESS: Target found!")
+    return target
+end
+
+local function walkToTarget(targetPosition)
+    local character = LocalPlayer.Character
+    if not character then return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not hrp then 
+        print("ERROR: Character missing HRP or Humanoid!")
+        return 
+    end
+
+    if humanoid.MoveDirection.Magnitude > 0 then
+        print("DEBUG: Player is controlling, script paused.")
+        return 
+    end
+
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 2,
+        AgentHeight = 5,
+        AgentCanJump = true
+    })
+
+    local success, errorMessage = pcall(function()
+        path:ComputeAsync(hrp.Position, targetPosition)
+    end)
+
+    if not success then
+        print("PATH ERROR: " .. tostring(errorMessage))
+        return
+    end
+
+    if path.Status == Enum.PathStatus.Success then
+        print("Path calculated successfully.")
+        local waypoints = path:GetWaypoints()
+        for _, waypoint in ipairs(waypoints) do
+            humanoid:MoveTo(waypoint.Position)
+            humanoid.MoveToFinished:Wait(1)
+        end
+    else
+        print("PATH ERROR: Path status not success (Path blocked or too far).")
+    end
+end
+
+task.spawn(function()
+    while true do
+        local targetPart = getTargetPart()
+        if targetPart then
+            walkToTarget(targetPart.Position)
+        else
+            print("Trying to find target again in 5 seconds...")
+        end
+        task.wait(5)
+    end
+end)
